@@ -1,6 +1,3 @@
-Here's a cleaned-up version of the documentation, written in plain Markdown (GitHub-compatible), without tables, and replacing the word **Supertrend** with **Volatility Trend Strategy**:
-
----
 
 # Volatility Trend Strategy v1.0 (Nikko)
 
