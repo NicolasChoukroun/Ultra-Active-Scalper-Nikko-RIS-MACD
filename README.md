@@ -108,6 +108,3 @@ Alerts are pre-coded but commented out. You can activate them by removing the `/
 * Adjust the multiplier for different volatility levels.
 * Combine with other filters (like MACD or volume) for confirmation.
 
----
-
-Let me know if you want to generate a [GitHub README.md file](f), a [commented version of the code](f), or an [exportable backtest report](f).
