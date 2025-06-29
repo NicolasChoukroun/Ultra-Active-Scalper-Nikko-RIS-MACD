@@ -1,5 +1,5 @@
 //@version=6
-strategy("🔥 Nikko Ultra-Active Scalper (MACD + RSI)", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=1, pyramiding=100)
+strategy("🔥 Ultra-Active Scalper (Nikko)", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=1, pyramiding=100)
 
 // === Fast Indicators
 macdFast = input.int(6, title="MACD Fast Length")
@@ -7,7 +7,8 @@ macdSlow = input.int(13, title="MACD Slow Length")
 macdSig  = input.int(5, title="MACD Signal Length")
 rsiLen   = input.int(7, title="RSI Length")
 rsiMin   = input.int(40, title="RSI Min Threshold")
-takeProfitPercent = input.float(0.9, title="Take Profit (%)")
+takeProfitPercent = input.float(2, title="Take Profit (%)")
+lossPercent = takeProfitPercent/2
 
 // === MACD and RSI
 [macd, signal, _] = ta.macd(close, macdFast, macdSlow, macdSig)
@@ -25,10 +26,13 @@ if strategy.opentrades > 0
 else
     entryPrice := na
 
-tpLevel = entryPrice * (1 + takeProfitPercent / 100)
-exitTP = close >= tpLevel
+tpLevelup = entryPrice * (1 + takeProfitPercent / 100)
+lossLeveldown = entryPrice * (1 + lossPercent / 100)
+exitTPWin = close >= tpLevelup
+exitTPLossn = close >= lossLeveldown
 
-if exitTP
+
+if exitTPWin or exitTPLossn
     strategy.close_all(comment="Take Profit")
 
 // === Visual Aid
