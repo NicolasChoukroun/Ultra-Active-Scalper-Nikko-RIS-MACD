@@ -1,88 +1,36 @@
-// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
-// by Nikko June 2025
-
 //@version=6
-strategy("Supertrend Strategy v.1.0 (Nikko)", overlay=true, initial_capital=10000, pyramiding=1, default_qty_type=strategy.percent_of_equity, default_qty_value=100)
+strategy("🔥 Nikko Ultra-Active Scalper (MACD + RSI)", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=1, pyramiding=100)
 
-// === INPUT PARAMETERS ===
-atrPeriod = input.int(title="ATR Period", defval=17)
-atrMultiplier = input.float(title="ATR Multiplier", step=0.1, defval=5)
-priceSource = input.source(title="Source", defval=hl2)
-useWicks = input.bool(title="Take Wicks into Account ?", defval=true)
-showSignalLabels = input.bool(title="Show Buy/Sell Labels ?", defval=true)
-highlightTrend = input.bool(title="Highlight State ?", defval=true)
+// === Fast Indicators
+macdFast = input.int(6, title="MACD Fast Length")
+macdSlow = input.int(13, title="MACD Slow Length")
+macdSig  = input.int(5, title="MACD Signal Length")
+rsiLen   = input.int(7, title="RSI Length")
+rsiMin   = input.int(40, title="RSI Min Threshold")
+takeProfitPercent = input.float(0.9, title="Take Profit (%)")
 
-// === ATR CALCULATION ===
-atrValue = atrMultiplier * ta.atr(atrPeriod)
+// === MACD and RSI
+[macd, signal, _] = ta.macd(close, macdFast, macdSlow, macdSig)
+rsi = ta.rsi(close, rsiLen)
 
-// === PRICE CONDITIONS ===
-highInput = useWicks ? high : close
-lowInput = useWicks ? low : close
-isDojiBar = open == close and open == low and open == high
+// === Entry Condition (very relaxed)
+entryCond = macd > signal and rsi > rsiMin
+if entryCond
+    strategy.entry("Long", strategy.long)
 
-// === LONG STOP CALCULATION ===
-longStop = priceSource - atrValue
-previousLongStop = na(longStop[1]) ? longStop : longStop[1]
-
-if longStop > 0
-    if isDojiBar
-        longStop := previousLongStop
-    else
-        longStop := (lowInput[1] > previousLongStop ? math.max(longStop, previousLongStop) : longStop)
+// === Exit Condition: Take Profit only
+var float entryPrice = na
+if strategy.opentrades > 0
+    entryPrice := strategy.opentrades.entry_price(0)
 else
-    longStop := previousLongStop
+    entryPrice := na
 
-// === SHORT STOP CALCULATION ===
-shortStop = priceSource + atrValue
-previousShortStop = na(shortStop[1]) ? shortStop : shortStop[1]
+tpLevel = entryPrice * (1 + takeProfitPercent / 100)
+exitTP = close >= tpLevel
 
-if shortStop > 0
-    if isDojiBar
-        shortStop := previousShortStop
-    else
-        shortStop := (highInput[1] < previousShortStop ? math.min(shortStop, previousShortStop) : shortStop)
-else
-    shortStop := previousShortStop
+if exitTP
+    strategy.close_all(comment="Take Profit")
 
-// === TREND DIRECTION DETECTION ===
-var trendDirection = 1
-trendDirection := trendDirection == -1 and highInput > previousShortStop ? 1 :
-                  trendDirection == 1 and lowInput < previousLongStop ? -1 :
-                  trendDirection
+// === Visual Aid
+barcolor(entryCond ? color.lime : na)
 
-// === PLOT SETTINGS ===
-var color longTrendColor = color.green
-var color shortTrendColor = color.red
-
-// === PLOT LONG STOP LINE ===
-longStopPlot = plot(trendDirection == 1 ? longStop : na, title="Long Stop", style=plot.style_linebr, linewidth=2, color=longTrendColor)
-buySignal = trendDirection == 1 and trendDirection[1] == -1
-plotshape(buySignal ? longStop : na, title="Long Stop Start", location=location.absolute, style=shape.circle, size=size.tiny, color=longTrendColor)
-plotshape(buySignal and showSignalLabels ? longStop : na, title="Buy Label", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=longTrendColor, textcolor=color.white)
-
-// === PLOT SHORT STOP LINE ===
-shortStopPlot = plot(trendDirection == 1 ? na : shortStop, title="Short Stop", style=plot.style_linebr, linewidth=2, color=shortTrendColor)
-sellSignal = trendDirection == -1 and trendDirection[1] == 1
-plotshape(sellSignal ? shortStop : na, title="Short Stop Start", location=location.absolute, style=shape.circle, size=size.tiny, color=shortTrendColor)
-plotshape(sellSignal and showSignalLabels ? shortStop : na, title="Sell Label", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=shortTrendColor, textcolor=color.white)
-
-// === HIDDEN MID PRICE PLOT FOR BACKGROUND HIGHLIGHTING ===
-midPricePlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=1, display=display.none, editable=false)
-
-longHighlightColor = highlightTrend ? (trendDirection == 1 ? longTrendColor : na) : na
-shortHighlightColor = highlightTrend ? (trendDirection == -1 ? shortTrendColor : na) : na
-//fill(midPricePlot, longStopPlot, title="Long State Filling", color=longHighlightColor)
-//fill(midPricePlot, shortStopPlot, title="Short State Filling", color=shortHighlightColor)
-
-// === ALERT CONDITIONS ===
-trendChange = trendDirection != trendDirection[1]
-//alertcondition(trendChange, title="Alert: SuperTrend Direction Change", message="SuperTrend has changed direction!\nSymbol: {{exchange}}:{{ticker}}\nPrice: {{close}}")
-//alertcondition(buySignal, title="Alert: SuperTrend Buy", message="SuperTrend Buy!\nSymbol: {{exchange}}:{{ticker}}\nPrice: {{close}}")
-//alertcondition(sellSignal, title="Alert: SuperTrend Sell", message="SuperTrend Sell!\nSymbol: {{exchange}}:{{ticker}}\nPrice: {{close}}")
-
-// === STRATEGY ORDERS ===
-if buySignal
-    strategy.entry("Buy", strategy.long, comment="Buy")
-if sellSignal
-    strategy.close("Buy", comment="Sell")
-    //strategy.close_all()
